@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt= require('bcryptjs')
+const jwt = require('jsonwebtoken')
+const Task= require('./task')
 
 
 const userSchema = new mongoose.Schema({
@@ -30,8 +32,66 @@ const userSchema = new mongoose.Schema({
 			}
 		},
 	},
+	// we are also tracking the token, it has the token property
+	tokens: [{
+		token: { type: String, required:true}
+	}],
+
+}, {
+	timestamps:true
 })
+// Virtual Property
+// Virtual Property is not actual data stored in data, it is the relationship between two entity
+// here we have relationship between Task and user on virtual, not stored in database
+// it is just for mongoose to be able to figure who owns what and how they are related
+
+// userSchema.virtual( any name, object) 
+
+
+userSchema.virtual('tasks', {
+	ref: 'Task',
+	localField:'_id',   // where local data is stored, we have owner object id on task, 
+	// that is associated with _id of user here in the model
+	foreignField:'owner' //name of the field on other field, arko model ma owner vanera 6 ni
+})
+// first way to do, manual
+// userSchema.methods.getPublicProfile = function (){
+
+// 	// is is sendingthe password and tokens, just we are not sending that doing the following
+// 	const user = this
+// 	const userObject = user.toObject()
+
+// 	delete userObject.password
+// 	delete userObject.tokens
+
+// 	return userObject
+// }
+
+userSchema.methods.toJSON = function (){
+
+	// is is sendingthe password and tokens, just we are not sending that doing the following
+	const user = this
+	const userObject = user.toObject()
+
+	delete userObject.password
+	delete userObject.tokens
+
+	return userObject
+}
+//methods are accessible to the instances
+//instance method
+userSchema.methods.generateAuthToken = async function(){
+	const user = this
+	const token = jwt.sign({_id: user._id.toString()}, 'thisismynewcourse')
+	user.tokens= user.tokens.concat({ token : token})
+	await user.save()
+	return token
+
+}
+
+
 //by setting the value here, we were able to get directly in the model
+//statics used for the model, model methods
 
 userSchema.statics.findByCredentials= async (email, password)=>{
 	//find user by email
@@ -58,6 +118,12 @@ userSchema.pre('save', async function ( next){
 		user.password = await bcrypt.hash(user.password, 0)
 	}
 	console.log('just before saving')
+	next()
+})
+//Delete user tasks when the user is removed
+userSchema.pre('remove', async function (next){
+	const user= this
+	await Task.deleteMany({owner:user._id})
 	next()
 })
 const User = mongoose.model('User',userSchema );

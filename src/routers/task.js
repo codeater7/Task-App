@@ -1,10 +1,15 @@
 const express = require('express');
 const Task = require('../models/task');
+const auth = require('../middleware/auth')
 const router = new express.Router();
 
-router.post('/tasks', async (req, res) => {
+
+router.post('/tasks', auth, async (req, res) => {
 	// property we are trying to set up is in req.body
-	const task = new Task(req.body);
+    //const task = new Task(req.body); // adding the owner property // link the user  and tasks
+    const taks = new Task ({
+        ...req.body, owner: req.user._id
+    })
 	try {
 		const tasks = await task.save();
 		res.status(201).send(tasks);
@@ -13,19 +18,53 @@ router.post('/tasks', async (req, res) => {
 	}
 });
 
-router.get('/tasks', async (req, res) => {
+//GET  /tasks?completed=true
+//GET /tasks?limit=10&skip=0
+//GET /tasks?sortBy=createdAt:desc        (filed we are trying to sort by, 2nd is the order)
+// 100-1000 of dataabase 
+// limit skip ( pagination)
+router.get('/tasks', auth, async (req, res) => {
+    //req.query.completed
+    const match = { }
+    const sort= { }
+
+    if ( req.query.completed){ // yedi match garera search garako vayee hai
+        // we are setting to string, address ma string aauxa hai, boolean hoina
+        match.completed = req.query.completed === 'true'
+}
+    if (req.query.sortBy){
+        const parts = req.query.sortBy.split(':')
+        sort[parts[0]] = parts[1]==='desc' ? -1 : 1
+        //sortBy= desc ( if descending -1 else 1)
+    }
 	try {
-		const tasks = await Task.find({});
-		res.send(tasks);
+        //const tasks = await Task.find({ owner:res.user._id});
+        // either of the above will work
+        // mathi ko link ko path ani match garnee, tara we have to make it dynamic
+        await req.user.populate({ 
+            path:'tasks',
+             match ,
+             options: {
+                    limit:parseInt(request.query.limit),
+                    skip:pareseInt(request.query.skip), // Kati ota skip garnee vanera
+                    // sort:{
+                    //     createdAt: -1 // descending ( latest firt)
+                    //     //completed: -1
+                    // }
+                    sort
+             }
+            }).excePopulate()
+		res.send(req.user.tasks);
 	} catch (error) {
 		res.status(500).send(error);
 	}
 });
-
-router.get('/tasks/:id', async (req, res) => {
+// lets make only the tasks that are created by the user
+router.get('/tasks/:id', auth, async (req, res) => {
 	const _id = req.params.id;
 	try {
-		const task = await Task.findById(_id);
+        //const task = await Task.findById(_id);
+        const task = await Task.findOne({_id, owner:req.user._id})
 		if (!task) {
 			return res.status(404).send();
 		}
@@ -51,12 +90,14 @@ router.patch('/tasks/:id', async (req, res) => {
 	}
 
 	try {
-        const task = await Task.findById(req.params.id)
-        updates.forEach((update)=>{
-            task[update] = req.body[update]
-        })
+        const task = await Task.findOne({ _id: req.params.id, owner: req.user._id})
+        // const task = await Task.findById(req.params.id)
+        // updates.forEach((update)=>{
+        //     task[update] = req.body[update]
+        // })
 
-        await task.save()
+        // await task.save()
+        // above will work too
 		//const task = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
 		if (!task) {
 			return res.status(404).send;
@@ -67,9 +108,12 @@ router.patch('/tasks/:id', async (req, res) => {
 	}
 });
 
-router.delete('/tasks/:id', async (req, res) => {
+router.delete('/tasks/:id', auth, async (req, res) => {
 	try {
-		const task = await Task.findByIdAndDelete(req.params.id);
+        //const task = await Task.findByIdAndDelete(req.params.id);
+
+        // we want to take account od task id and owner id
+        const task = await Task.findOneAndDelete( { _id: req.params.id, owner:req.user._id})
 		if (!task) {
 			return res.status(404).send();
 		}

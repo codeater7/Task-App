@@ -2,6 +2,9 @@ const express = require('express')
 const User= require('../models/user')
 const auth = require( '../middleware/auth')
 const router = new express.Router()
+const multer = require('multer')
+const sharp = require('sharp')
+const {sendWelcomeEmail, sendCancelationEmail} = require('../emails/account')
 
 
 router.post('/users', async (req, res) => {
@@ -10,6 +13,7 @@ router.post('/users', async (req, res) => {
 
 	try {
 		await user.save();
+		sendWelcomeEmail(user.email, user.name)
 
 		const token = await user.generateAuthToken()
 		
@@ -127,12 +131,77 @@ router.delete('/users/me',auth,  async(req, res) =>{
         //     return res.status(404).send()
 		// }
 		req.user.remove()  // mathi ko kaam garxa
+		sendCancelationEmail(req.user.email, req.user.name)
         res.send(req.user)
 
     }catch (e){
         res.send(500).send()
 
     }
+})
+const upload = multer({
+	
+	limits: { fileSize:1000000},
+	//request being made, info about file being uploaded 
+	fileFilter (req, file, cb){
+		if (!file.originalname.match(/\.(jpg|jpeg|png)$/)){
+			return cb (new Error('Please upload a Word document'))
+
+		}
+		cb (undefined, true)
+		// cb( new Error('file must be a PDF'))
+		// // undefined-nothing went wrong, true if upload is to be expected
+		// cb (undefined, true)
+		// cb (undefined, false)
+
+
+	}
+})
+
+// lets create middleware upload.single middleware elsewhere
+router.post('/users/me/avatar', auth, upload.single('avatar') , async(req, res)=>{
+	// data is excessible in access.file.buffer
+	//storing in (user) avatar field; i.e req.user.avatar
+
+	//req.user.avatar= req.file.buffer
+
+	//buffer is the modified data, 
+	const buffer=  await sharp(req.file.buffer).resize({ width:250, height:250}).png().toBuffer()
+	req.user.avatar= buffer
+
+	await req.user.save()
+	res.send()
+
+}, (error, req, res, next)=>{
+	res.status(400).send({error: error.message})
+})
+
+router.delete('/users/me/avatar', auth, async(req, res)=>{
+	//set the field to undefined and save teh user sending back a 200
+	req.user.avatar= undefined
+	await req.user.save()
+	res.send()
+})
+
+// serving up the files
+router.get('/users/:id/avatar', async(req, res)=>{
+ try {
+	 const user = await User.findById(req.params.id)
+	 if (!user || !user.avatar){
+		 throw new Error()
+
+	 }
+
+	 //what kind of image they get // have to set the response header
+	 //set(key:value)
+	 res.set('Content-Type', 'image/png')
+	 res.send(user.avatar)
+
+ }catch (e){
+	 res.s
+	 tatus(404).send()
+
+ }
 })
 
 module.exports = router

@@ -6,7 +6,7 @@ const auth = async (req, res, next )=>{
         // looks for user provided header
         const token = req.header('Authorization').replace('Bearer', '')
         // validates the  header
-        const decoded = jwt.verify(token, 'thisismynewcourse')
+        const decoded = jwt.verify(token, process.env.JWT_SECRET)
         // finds the associated user ( look for the user,check if this token is part of the token array)
         // tokens arrray ma token vanni khojxa, hamro value k 6 tyo 
         const user = await User.findOne({ _id: decoded._id, 'tokens.token':token})

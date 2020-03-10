@@ -5,20 +5,10 @@ const taskRouter = require('./routers/task');
 
 
 const app = express()
-const port = process.env.PORT ||3000
-// to use the middleware  
-app.use(( req, res, next)=>{
-    //GET /users
-    console.log(req.method, req.path)
+const port = process.env.PORT
 
-    if (req.method === 'GET'){
-        res.send('GET request are disabled ')
-    }else{
-        next()
-    }
-   
 
-})
+
 // app.use(( req, res, next)=>{
 //     //GET /users
 //     res.status(503).send('Site is currently down, check back soon')
@@ -34,24 +24,45 @@ app.listen(port, () => {
 	console.log('server is listening in ' + port);
 });
 
-const Tasks = require('./models/task')
-const User = require('./models/user')
 
-const main = async ()=>{
-    // const task = await Tasks.findById('35t4u99u29yr92yt92t92t')
-    // //find the user who is accociated with this task  and taks.owner will be the profile
-    // //as opposed to only id
-    // await task.populate('owner').execPopulate()
-    // console.log(task)
-    // console.log(task.owner)
 
-    const user = await User.findById('5c9t492u02tu02u02u02')
-    await  user.populate('tasks').execPopulate()
-    console.log(user.task)
 
-}
+// to use the middleware  
+// app.use(( req, res, next)=>{
+//     //GET /users
+//     console.log(req.method, req.path)
 
-main()
+//     if (req.method === 'GET'){
+//         res.send('GET request are disabled ')
+//     }else{
+//         next()
+//     }
+   
+
+// })
+
+
+
+
+
+// const Tasks = require('./models/task')
+// const User = require('./models/user')
+
+// const main = async ()=>{
+//     // const task = await Tasks.findById('35t4u99u29yr92yt92t92t')
+//     // //find the user who is accociated with this task  and taks.owner will be the profile
+//     // //as opposed to only id
+//     // await task.populate('owner').execPopulate()
+//     // console.log(task)
+//     // console.log(task.owner)
+
+//     const user = await User.findById('5c9t492u02tu02u02u02')
+//     await  user.populate('tasks').execPopulate()
+//     console.log(user.task)
+
+// }
+
+// main()
 
 
 
